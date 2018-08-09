@@ -2,6 +2,7 @@ package maxlinke;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 //import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -14,7 +15,7 @@ public class FileSender {
 
 	private static Path sourcePath;
 	private static int port;
-	private static String fileName;
+	private static JWFTInfo fileInfo;
 	private static String latestMessage;
 	private static boolean gotUnreadMessages;
 	
@@ -69,9 +70,9 @@ public class FileSender {
 			updateLatestMessage("Could not get file");
 		}else{
 			sourcePath = tempPath;
-			fileName = selectedFile.getName();
+			fileInfo = new JWFTInfo(selectedFile);
 			gotFile = true;
-			updateLatestMessage("Selected \"" + fileName + "\"");
+			updateLatestMessage("Selected \"" + fileInfo.fileName + "\"");
 		}		
 	}
 	
@@ -116,11 +117,19 @@ public class FileSender {
 			updateLatestMessage("Hosting on : LAN " + IPGetter.getLANIP() + " / WAN " + IPGetter.getWANIP());
 			Socket connection = socket.accept();
 			updateLatestMessage("Sending to " + connection.getInetAddress());
-			try(PrintWriter firstOut = new PrintWriter(connection.getOutputStream(), true)){
-				firstOut.println(fileName);
+//			try(PrintWriter firstOut = new PrintWriter(connection.getOutputStream(), true)){
+//				firstOut.println(fileName);
+//			}catch(IOException e){
+//				isDone = true;
+//				updateLatestMessage("An error occured sending the file name");
+//				e.printStackTrace();
+//			}
+			try(ObjectOutputStream oos = new ObjectOutputStream(connection.getOutputStream())){
+				oos.writeObject(fileInfo);
+				oos.flush();
 			}catch(IOException e){
 				isDone = true;
-				updateLatestMessage("An error occured sending the file name");
+				updateLatestMessage("An error occured sending the file info");
 				e.printStackTrace();
 			}
 		} catch (Exception e) {

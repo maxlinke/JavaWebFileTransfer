@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 //import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
 import java.net.Socket;
 //import java.net.UnknownHostException;
 import java.nio.file.Files;
@@ -97,22 +98,24 @@ public class FileReceiver {
 //					else updateLatestMessage("An error occured");
 //					e.printStackTrace();
 //				}
-				Path sinkPath = receiveFilename();
+				JWFTInfo fileInfo = receiveFileInfo();
 				if(!isDone){
-					updateLatestMessage("Received filename (" + sinkPath + ")");
-					receiveFile(sinkPath);
+					updateLatestMessage("Received file info (" + fileInfo.fileName + ")");
+					receiveFile(fileInfo);
 				}
 			}
 		}).start();
 	}
 	
-	private static Path receiveFilename(){
-		Path sinkPath = null;
+	private static JWFTInfo receiveFileInfo(){
+		JWFTInfo fileInfo = null;
 		if(!isDone){
 			try(Socket connection = new Socket(hostAddress, hostPort)){
 				updateLatestMessage("Receiving from " + connection.getInetAddress());
-				try(BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()))){
-					sinkPath = Paths.get(downloadDirectory + "/" + br.readLine());
+//				try(BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()))){
+//					sinkPath = Paths.get(downloadDirectory + "/" + br.readLine());
+				try(ObjectInputStream ois = new ObjectInputStream(connection.getInputStream())){
+					fileInfo = (JWFTInfo) ois.readObject();
 				}catch(IOException e){
 					isDone = true;
 					updateLatestMessage("An error occured receiving the file info");
@@ -124,11 +127,16 @@ public class FileReceiver {
 				e.printStackTrace();
 			}
 		}
-		return sinkPath;
+		return fileInfo;
 	}
 	
-	private static void receiveFile(Path sinkPath){
+	private static Path createSinkPath(JWFTInfo fileInfo){
+		return Paths.get(downloadDirectory + "/" + fileInfo.fileName);
+	}
+	
+	private static void receiveFile(JWFTInfo fileInfo){
 		updateLatestMessage("Starting receiving file");
+		Path sinkPath = createSinkPath(fileInfo);
 		TwoPartTransporter writer = null;
 		try{
 			writer = new TwoPartTransporter(Files.newOutputStream(sinkPath));
