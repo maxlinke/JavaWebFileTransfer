@@ -12,6 +12,7 @@ public class TwoPartTransporter implements Runnable{
 	InputStream input;
 	OutputStream output;
 	TwoPartTransporter other;
+	private long bytesProcessed;
 	
 	public TwoPartTransporter(InputStream input){
 		this.input = input;
@@ -38,12 +39,18 @@ public class TwoPartTransporter implements Runnable{
 		pipedIn.connect(pipedOut);
 	}
 	
+	public long getBytesProcessed(){
+		return bytesProcessed;
+	}
+	
 	@Override
 	public void run() {
+		bytesProcessed = 0L;
 		try{
 			final byte[] buffer = new byte[0x10000];
 			for (int bytesRead = input.read(buffer); bytesRead != -1; bytesRead = input.read(buffer)) {
 				output.write(buffer, 0, bytesRead);
+				bytesProcessed += bytesRead;
 			}
 		}catch(Exception e){
 			System.out.println(">>> " + (isFileReader ? "reader " : "writer ") + "says :");

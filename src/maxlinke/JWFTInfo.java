@@ -5,7 +5,7 @@ import java.io.Serializable;
 
 public class JWFTInfo implements Serializable{
 
-	private static final long serialVersionUID = (long)Main.version.hashCode();
+	private static final long serialVersionUID = 1L;
 
 	public final String version;
 	public final String fileName;

@@ -16,7 +16,7 @@ public class Main extends Application {
 		BorderPane root = (BorderPane)FXMLLoader.load(getClass().getResource("JWFTAppView.fxml"));
 		Scene scene = new Scene(root);
 		primaryStage.setScene(scene);
-		primaryStage.setTitle("Java Web File Transfer");
+		primaryStage.setTitle("Java Web File Transfer v" + version);
 		primaryStage.setResizable(false);
 		primaryStage.show();
 		primaryStage.setOnCloseRequest(e -> System.exit(-1));

@@ -159,8 +159,24 @@ public class FileSender {
 					readThread.start();
 					writeThread.start();
 					
+					new Thread(){
+						@Override 
+						public void run(){
+							while(!isDone){
+								long bytesProcessed = reader.getBytesProcessed();
+								long fraction = (1000L * bytesProcessed) / fileInfo.fileSizeInBytes;
+								int percent = (int)(fraction / 10L);
+								int remainder = (int)(fraction % 10L);
+								updateLatestMessage("Sending to " + connection.getInetAddress() + " (" + percent + "." + remainder + "%)");
+								yield();
+							}
+						}
+					}.start();
+					
 					readThread.join();
 					writeThread.join();
+					
+					isDone = true;
 					
 					updateLatestMessage("Successfully finished file transfer");
 				}

@@ -87,18 +87,8 @@ public class FileReceiver {
 		new Thread(new Runnable(){
 			@Override
 			public void run() {
-//				try(Socket connection = new Socket(hostAddress, hostPort)){
-//					updateLatestMessage("Receiving from " + connection.getInetAddress());
-//					InputStream inputStream = connection.getInputStream();
-//					Path sinkPath = receiveFilename(inputStream);
-//					if(sinkPath != null) receiveFile(inputStream, sinkPath);
-//					inputStream.close();
-//				}catch(Exception e){
-//					if(e instanceof UnknownHostException) updateLatestMessage("An error occured - Unknown Host");
-//					else updateLatestMessage("An error occured");
-//					e.printStackTrace();
-//				}
 				JWFTInfo fileInfo = receiveFileInfo();
+				checkVersion(fileInfo);
 				if(!isDone){
 					updateLatestMessage("Received file info (" + fileInfo.fileName + ")");
 					receiveFile(fileInfo);
@@ -112,8 +102,6 @@ public class FileReceiver {
 		if(!isDone){
 			try(Socket connection = new Socket(hostAddress, hostPort)){
 				updateLatestMessage("Receiving from " + connection.getInetAddress());
-//				try(BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()))){
-//					sinkPath = Paths.get(downloadDirectory + "/" + br.readLine());
 				try(ObjectInputStream ois = new ObjectInputStream(connection.getInputStream())){
 					fileInfo = (JWFTInfo) ois.readObject();
 				}catch(IOException e){
@@ -128,6 +116,13 @@ public class FileReceiver {
 			}
 		}
 		return fileInfo;
+	}
+	
+	private static void checkVersion(JWFTInfo fileInfo){
+		if(!fileInfo.version.equals(Main.version)){
+			updateLatestMessage("Aborting, sender has other version (" + fileInfo.version + ")");
+			isDone = true;
+		}
 	}
 	
 	private static Path createSinkPath(JWFTInfo fileInfo){
@@ -151,16 +146,36 @@ public class FileReceiver {
 			TwoPartTransporter reader = new TwoPartTransporter(connection.getInputStream());
 			reader.link(writer);
 			
-			Thread readThread = new Thread(reader);
+			Thread readThread = new Thread(reader);		//TODO also set daemon?
 			Thread writeThread = new Thread(writer);
 			
 			readThread.start();
 			writeThread.start();
 			
+			new Thread(){		//TODO code duplication galore between receiver and sender...
+				@Override 
+				public void run(){
+					while(!isDone){
+						long bytesProcessed = reader.getBytesProcessed();
+						long fraction = (1000L * bytesProcessed) / fileInfo.fileSizeInBytes;
+						int percent = (int)(fraction / 10L);
+						int remainder = (int)(fraction % 10L);
+						if(!isDone) updateLatestMessage("Receiving from " + connection.getInetAddress() + " (" + percent + "." + remainder + "%)");		//TODO might have to kill this thread manually
+						yield();
+					}
+				}
+			}.start();
+						
 			readThread.join();
 			writeThread.join();
 			
-			updateLatestMessage("Successfully finished file transfer");
+			isDone = true;
+			
+			if(reader.getBytesProcessed() == fileInfo.fileSizeInBytes){
+				updateLatestMessage("Successfully finished file transfer");
+			}else{
+				updateLatestMessage("File transfer finished incomplete");
+			}
 		}catch(Exception e){
 			updateLatestMessage("An error occured receiving the file");
 			e.printStackTrace();
