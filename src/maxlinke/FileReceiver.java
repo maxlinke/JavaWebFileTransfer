@@ -1,12 +1,8 @@
 package maxlinke;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-//import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.net.Socket;
-//import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -183,32 +179,4 @@ public class FileReceiver {
 			isDone = true;
 		}
 	}
-	
-	/*
-	private static Path receiveFilename(InputStream inputStream) throws IOException{
-		Path sinkPath = null;
-		BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
-		sinkPath = Paths.get(downloadDirectory + "/" + br.readLine());
-		return sinkPath;
-	}
-	
-	private static void receiveFile(InputStream inputStream, Path sinkPath) throws IOException, InterruptedException{
-		TwoPartTransporter reader = new TwoPartTransporter(inputStream);
-		TwoPartTransporter writer = new TwoPartTransporter(Files.newOutputStream(sinkPath));
-		reader.link(writer);
-		
-		Thread readThread = new Thread(reader);
-		Thread writeThread = new Thread(writer);
-		
-		readThread.start();
-		writeThread.start();
-		
-		readThread.join();
-		writeThread.join();
-		
-		updateLatestMessage("Successfully finished file transfer");
-		
-	}
-	*/
-	
 }
