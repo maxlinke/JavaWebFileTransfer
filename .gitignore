@@ -40,3 +40,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# JWFT Downloads
+jwft_downloads/
