@@ -9,7 +9,7 @@ import javafx.scene.layout.BorderPane;
 
 public class Main extends Application {
 	
-	public static String version = "1.2";
+	public static final String version = "1.2";
 	
 	@Override
 	public void start(Stage primaryStage) throws Exception {

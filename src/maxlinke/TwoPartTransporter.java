@@ -8,24 +8,24 @@ import java.io.PipedOutputStream;
 
 public class TwoPartTransporter implements Runnable{
 
-	boolean isFileReader;
-	InputStream input;
-	OutputStream output;
-	TwoPartTransporter other;
+	private boolean isFileReader;
+	private InputStream input;
+	private OutputStream output;
 	private long bytesProcessed;
 	
 	public TwoPartTransporter(InputStream input){
 		this.input = input;
 		isFileReader = true;
+		bytesProcessed = 0L;
 	}
 	
 	public TwoPartTransporter(OutputStream output){
 		this.output = output;
 		isFileReader = false;
+		bytesProcessed = 0L;
 	}
 	
 	public void link(TwoPartTransporter other) throws IOException{
-		this.other = other;
 		if(this.isFileReader == other.isFileReader) throw new AssertionError("both streams are either in or output");
 		PipedOutputStream pipedOut = new PipedOutputStream();
 		PipedInputStream pipedIn = new PipedInputStream();
@@ -43,6 +43,16 @@ public class TwoPartTransporter implements Runnable{
 		return bytesProcessed;
 	}
 	
+	private void closeStreams () throws IOException {
+		if(isFileReader){
+			this.input.close();
+			this.output.close();
+		}else{
+			this.output.close();
+			this.input.close();
+		}
+	}
+	
 	@Override
 	public void run() {
 		bytesProcessed = 0L;
@@ -52,21 +62,11 @@ public class TwoPartTransporter implements Runnable{
 				output.write(buffer, 0, bytesRead);
 				bytesProcessed += bytesRead;
 			}
-		}catch(Exception e){
-			System.out.println(">>> " + (isFileReader ? "reader " : "writer ") + "says :");
-			if(e instanceof IOException) System.out.println("> an error occured while transmitting <\n" + e.getMessage());
-			else throw new AssertionError();
+		}catch(IOException e){
 			e.printStackTrace();
 		}finally{
-			System.out.println((isFileReader ? "reader-" : "writer-") + "thread finished");
 			try {
-				if(isFileReader){
-					this.input.close();
-					this.output.close();
-				}else{
-					this.output.close();
-					this.input.close();
-				}
+				closeStreams();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

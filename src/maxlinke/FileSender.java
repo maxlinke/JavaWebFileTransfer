@@ -9,73 +9,61 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class FileSender {
+public class FileSender extends FileTransceiver{
 
-	private static Path sourcePath;
-	private static int port;
-	private static JWFTInfo fileInfo;
-	private static String latestMessage;
-	private static boolean gotUnreadMessages;
+	private Path sourcePath;
+	private int port;
+	private JWFTInfo fileInfo;
 	
-	private static boolean isDone;
-	private static boolean gotFile;
-	private static boolean gotPort;
+	private boolean gotFile;
+	private boolean gotPort;
 	
-	static{
-		gotUnreadMessages = false;
+	public FileSender () {
+		super();
 		gotFile = false;
 		gotPort = false;
-		isDone = true;
 	}
 	
-	public static boolean hasNewMessages(){
-		return gotUnreadMessages;
-	}
-	
-	public static String getLatestMessage(){
-		gotUnreadMessages = false;
-		return latestMessage;
-	}
-	
-	private static void updateLatestMessage(String message){
-		System.out.println(message);
-		gotUnreadMessages = true;
-		latestMessage = message;
-	}
-	
-	public static boolean tryParsePort(String portString){
-		gotPort = false;
-		try{
-			int tempPort = Integer.parseInt(portString);
-			if(tempPort < 0){
-				updateLatestMessage("No negative ports allowed");
-			}else{
-				port = tempPort;
-				gotPort = true;
-				updateLatestMessage("Successfully parsed port (" + Integer.toString(port) + ")");
-			}
-		}catch(NumberFormatException e){
-			updateLatestMessage("The port could not be parsed");
-		}
-		if(gotPort) return true;
-		else return false;
-	}
-	
-	public static void setSourceFile(File selectedFile){
-		Path tempPath = Paths.get(selectedFile.getAbsolutePath());
-		if (!Files.isReadable(tempPath)){
-			gotFile = false;
-			updateLatestMessage("Could not get file");
+	public boolean tryParsePort(String portString){
+		if(!isDone){
+			return false;
 		}else{
-			sourcePath = tempPath;
-			fileInfo = new JWFTInfo(selectedFile);
-			gotFile = true;
-			updateLatestMessage("Selected \"" + fileInfo.fileName + "\"");
-		}		
+			gotPort = false;
+			String message = "";
+			try{
+				port = makePortFromString(portString);
+				gotPort = true;
+				message = "Successfully parsed port (" + Integer.toString(port) + ")";
+			}catch(Exception e){
+				message = e.getMessage();
+			}
+			updateLatestMessage(message);
+			return gotPort;
+		}
 	}
 	
-	public static void tryToSend(){
-		isDone = false;
+	public void setSourceFile(File selectedFile){
+		if(!isDone){
+			//do nothing
+		}else{
+			Path tempPath = Paths.get(selectedFile.getAbsolutePath());
+			if (!Files.isReadable(tempPath)){
+				gotFile = false;
+				updateLatestMessage("Could not get file");
+			}else{
+				sourcePath = tempPath;
+				fileInfo = new JWFTInfo(selectedFile);
+				gotFile = true;
+				updateLatestMessage("Selected \"" + fileInfo.fileName + "\"");
+			}	
+		}
+			
+	}
+	
+	public void tryToSend(){
+		if(!isDone){
+			return;
+		}
 		if(!gotFile){
 			updateLatestMessage("No file selected");
 			isDone = true;
@@ -89,87 +77,51 @@ public class FileSender {
 		new Thread(new Runnable(){
 			@Override
 			public void run() {
-				sendFileInfo();
-				if(!isDone){
-					updateLatestMessage("Transmitted file info");
+				isDone = false;
+				try{
+					sendFileInfo();
 					sendFile();
+				}catch(Exception e){
+					e.printStackTrace();
+					updateLatestMessage(e.getMessage());
+				}finally{
+					isDone = true;
 				}
+				
 			}
 		}).start();
 	}
 	
-	private static void sendFileInfo(){
+	private void sendFileInfo() throws IOException{
 		try(ServerSocket socket = new ServerSocket(port)){
-			updateLatestMessage("Hosting on : LAN " + IPGetter.getLANIP() + " / WAN " + IPGetter.getWANIP());
+			updateLatestMessage(getHostingMessageText());
 			Socket connection = socket.accept();
 			updateLatestMessage("Sending to " + connection.getInetAddress());
-			try(ObjectOutputStream oos = new ObjectOutputStream(connection.getOutputStream())){
-				oos.writeObject(fileInfo);
-				oos.flush();
-			}catch(IOException e){
-				isDone = true;
-				updateLatestMessage("An error occured sending the file info");
-				e.printStackTrace();
-			}
-		} catch (Exception e) {
-			updateLatestMessage("An error occured sending the file info");
-			isDone = true;
-			e.printStackTrace();
+			ObjectOutputStream oos = new ObjectOutputStream(connection.getOutputStream());
+			oos.writeObject(fileInfo);
+			oos.flush();
+			oos.close();
 		}
 	}
 	
-	private static void sendFile(){
-		try {
-			TwoPartTransporter reader = new TwoPartTransporter(Files.newInputStream(sourcePath));
-			try(ServerSocket socket = new ServerSocket(port)){
-				updateLatestMessage("Waiting for download request");
-				Socket connection = socket.accept();
-				updateLatestMessage("Sending to " + connection.getInetAddress());			
-				if(!isDone){
-					TwoPartTransporter writer = new TwoPartTransporter(connection.getOutputStream());
-					reader.link(writer);
-					
-					Thread readThread = new Thread(reader);
-					Thread writeThread = new Thread(writer);
-					
-					readThread.setDaemon(true);
-					writeThread.setDaemon(true);
-					
-					readThread.start();
-					writeThread.start();
-					
-					new Thread(){
-						@Override 
-						public void run(){
-							while(!isDone){
-								long bytesProcessed = reader.getBytesProcessed();
-								long fraction = (1000L * bytesProcessed) / fileInfo.fileSizeInBytes;
-								int percent = (int)(fraction / 10L);
-								int remainder = (int)(fraction % 10L);
-								updateLatestMessage("Sending to " + connection.getInetAddress() + " (" + percent + "." + remainder + "%)");
-								yield();
-							}
-						}
-					}.start();
-					
-					readThread.join();
-					writeThread.join();
-					
-					isDone = true;
-					
-					updateLatestMessage("Successfully finished file transfer");
-				}
-				
-			} catch (Exception e) {
-				updateLatestMessage("An error occured sending the file");
-				e.printStackTrace();
-			} finally {
-				isDone = true;
-			}
-		} catch (IOException e) {
-			isDone = true;
-			updateLatestMessage("An error occured reading the file");
-			e.printStackTrace();
+	private String getHostingMessageText(){
+		String LANIP, WANIP;
+		try{LANIP = IPGetter.getLANIP();}
+		catch(Exception e){LANIP = "<unavailable>";}
+		try{WANIP = IPGetter.getWANIP();}
+		catch(Exception e){WANIP = "<unavailable>";}
+		return "Hosting on : LAN " + LANIP + " / WAN " + WANIP;
+	}
+	
+	private void sendFile() throws IOException, InterruptedException{
+		TwoPartTransporter reader = new TwoPartTransporter(Files.newInputStream(sourcePath));
+		try(ServerSocket socket = new ServerSocket(port)){
+			updateLatestMessage("Waiting for download request");
+			Socket connection = socket.accept();
+			TwoPartTransporter writer = new TwoPartTransporter(connection.getOutputStream());
+			startProgressMessageUpdaterThread(reader, fileInfo, "Sending");
+			transceive(reader, writer);
+			updateLatestMessage("Successfully finished file transfer");			
 		}
 	}
 }
