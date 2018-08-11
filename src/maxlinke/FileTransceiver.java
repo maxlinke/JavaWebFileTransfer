@@ -59,11 +59,14 @@ public abstract class FileTransceiver {
 					long fraction = (1000L * bytesProcessed) / fileInfo.fileSizeInBytes;
 					int percent = (int)(fraction / 10L);
 					int remainder = (int)(fraction % 10L);
-					if(percent < 100){
-						updateLatestMessage(messageBeforePercentage + " (" + percent + "." + remainder + "%)");
-					}
+					updateLatestMessage(messageBeforePercentage + " (" + percent + "." + remainder + "%)");
 					yield();
-				}				
+				}
+				if(tpt.getBytesProcessed() == fileInfo.fileSizeInBytes){
+					updateLatestMessage("Successfully finished file transfer");
+				}else{
+					updateLatestMessage("File transfer finished incomplete");
+				}
 			}
 		};
 	}

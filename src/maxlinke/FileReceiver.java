@@ -98,11 +98,6 @@ public class FileReceiver extends FileTransceiver{
 			TwoPartTransporter reader = new TwoPartTransporter(connection.getInputStream());
 			startProgressMessageUpdaterThread(reader, fileInfo, "Receiving");
 			transceive(reader, writer);
-			if(reader.getBytesProcessed() == fileInfo.fileSizeInBytes){
-				updateLatestMessage("Successfully finished file transfer");
-			}else{
-				updateLatestMessage("File transfer finished incomplete");
-			}
 		}
 	}
 }

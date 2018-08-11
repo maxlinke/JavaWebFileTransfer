@@ -87,7 +87,6 @@ public class FileSender extends FileTransceiver{
 				}finally{
 					isDone = true;
 				}
-				
 			}
 		}).start();
 	}
@@ -121,7 +120,6 @@ public class FileSender extends FileTransceiver{
 			TwoPartTransporter writer = new TwoPartTransporter(connection.getOutputStream());
 			startProgressMessageUpdaterThread(reader, fileInfo, "Sending");
 			transceive(reader, writer);
-			updateLatestMessage("Successfully finished file transfer");			
 		}
 	}
 }
